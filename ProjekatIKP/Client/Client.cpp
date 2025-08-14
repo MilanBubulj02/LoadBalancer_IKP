@@ -1,70 +1,79 @@
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
-#include <stdio.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include "ElectricMeterSt.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
-#define SERVER_PORT 5159
-#define SERVER_IP "127.0.0.1"
+void generateRandomData(ElectricMeterSt* meter) {
+    srand((unsigned int)time(NULL));
+    snprintf(meter->Id, ID_MAX_LEN, "A%d", rand() % 10 + 1);
+    meter->BlueOld = rand() % 50;
+    meter->GreenOld = rand() % 50;
+    meter->RedOld = rand() % 50;
+    meter->BlueNew = meter->BlueOld + (rand() % 50);
+    meter->GreenNew = meter->GreenOld + (rand() % 50);
+    meter->RedNew = meter->RedOld + (rand() % 50);
+}
+
+void printMeterData(ElectricMeterSt* meter) {
+    printf("ID: %s\n", meter->Id);
+    printf("BlueOld: %d, BlueNew: %d\n", meter->BlueOld, meter->BlueNew);
+    printf("GreenOld: %d, GreenNew: %d\n", meter->GreenOld, meter->GreenNew);
+    printf("RedOld: %d, RedNew: %d\n", meter->RedOld, meter->RedNew);
+}
 
 int main() {
-    WSADATA wsaData;
-    SOCKET clientSocket;
-    sockaddr_in serverAddr;
+    WSADATA wsa;
+    SOCKET sock;
+    struct sockaddr_in server;
+    ElectricMeterSt meter;
+    ResultSt result;
 
-    WSAStartup(MAKEWORD(2, 2), &wsaData);
+    WSAStartup(MAKEWORD(2, 2), &wsa);
 
-    clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+    while (1) {
+        sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (sock == INVALID_SOCKET) {
+            printf("Socket creation failed.\n");
+            Sleep(2000);
+            continue;
+        }
 
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(SERVER_PORT);
-    InetPtonA(AF_INET, SERVER_IP, &serverAddr.sin_addr);
+        server.sin_family = AF_INET;
+        server.sin_port = htons(5059);
+        inet_pton(AF_INET, "127.0.0.1", &server.sin_addr);
 
-    if (connect(clientSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-        printf("Ne mogu da se povezem na server.\n");
-        closesocket(clientSocket);
-        WSACleanup();
-        return 1;
+        if (connect(sock, (struct sockaddr*)&server, sizeof(server)) < 0) {
+            printf("Waiting for server...\n");
+            closesocket(sock);
+            Sleep(2000);
+            continue;
+        }
+
+        generateRandomData(&meter);
+        printMeterData(&meter);
+
+        send(sock, (char*)&meter, sizeof(meter), 0);
+
+        int bytes = recv(sock, (char*)&result, sizeof(result), 0);
+        if (bytes > 0) {
+            printf("Result from server:\n");
+            printf("ID: %s, Consumption: %d\n", result.Id, result.Result);
+        }
+        else {
+            printf("No result from server.\n");
+        }
+
+        closesocket(sock);
+        printf("Press Enter to send again...\n");
+        getchar();
     }
 
-    srand((unsigned int)time(NULL));
-
-    ElectricMeterSt meter;
-    snprintf(meter.Id, ID_SIZE, "A%d", rand() % 10 + 1);
-
-    meter.BlueOld = rand() % 50;
-    meter.GreenOld = rand() % 50;
-    meter.RedOld = rand() % 50;
-
-    meter.BlueNew = meter.BlueOld + (rand() % 50);
-    meter.GreenNew = meter.GreenOld + (rand() % 50);
-    meter.RedNew = meter.RedOld + (rand() % 50);
-
-    printf("Slanje podataka serveru:\n");
-    printf("ID: %s\n", meter.Id);
-    printf("BlueOld: %d, BlueNew: %d\n", meter.BlueOld, meter.BlueNew);
-    printf("GreenOld: %d, GreenNew: %d\n", meter.GreenOld, meter.GreenNew);
-    printf("RedOld: %d, RedNew: %d\n", meter.RedOld, meter.RedNew);
-
-    send(clientSocket, (char*)&meter, sizeof(meter), 0);
-
-    ElectricMeterUsageSt usage;
-    recv(clientSocket, (char*)&usage, sizeof(usage), 0);
-
-    printf("\nRezultat sa servera:\n");
-    printf("ID: %s\n", usage.Id);
-    printf("Blue Usage: %d\n", usage.BlueUsage);
-    printf("Green Usage: %d\n", usage.GreenUsage);
-    printf("Red Usage: %d\n", usage.RedUsage);
-
-    getchar();
-    closesocket(clientSocket);
     WSACleanup();
     return 0;
 }
-
-

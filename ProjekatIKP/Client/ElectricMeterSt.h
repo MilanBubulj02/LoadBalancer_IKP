@@ -1,10 +1,10 @@
 #ifndef ELECTRIC_METER_ST_H
 #define ELECTRIC_METER_ST_H
 
-#define ID_SIZE 16
+#define ID_MAX_LEN 64
 
-typedef struct {
-    char Id[ID_SIZE];    // Može sadržati slova i brojeve
+typedef struct ElectricMeterSt {
+    char Id[ID_MAX_LEN];
     int BlueOld;
     int GreenOld;
     int RedOld;
@@ -13,12 +13,12 @@ typedef struct {
     int RedNew;
 } ElectricMeterSt;
 
-typedef struct {
-    char Id[ID_SIZE];
-    int BlueUsage;
-    int GreenUsage;
-    int RedUsage;
-} ElectricMeterUsageSt;
+typedef struct ResultSt {
+    char Id[ID_MAX_LEN];
+    int Result;
+} ResultSt;
 
 #endif
+
+
 

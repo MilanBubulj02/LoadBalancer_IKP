@@ -9,6 +9,10 @@
       {
         "Path": "..\\Client\\Client.vcxproj",
         "Action": "Start"
+      },
+      {
+        "Path": "..\\Worker\\Worker.vcxproj",
+        "Action": "Start"
       }
     ]
   }

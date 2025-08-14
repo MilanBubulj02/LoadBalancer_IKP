@@ -1,20 +1,53 @@
-// Worker.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
-/*
-#include <iostream>
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <stdio.h>
+#include <windows.h>
+#include "ElectricMeterSt.h"
 
-int main()
-{
-    std::cout << "Hello World!\n";
+#pragma comment(lib, "ws2_32.lib")
+
+int main() {
+    WSADATA wsa;
+    SOCKET sock;
+    struct sockaddr_in server;
+    ElectricMeterSt meter;
+    ResultSt result;
+
+    WSAStartup(MAKEWORD(2, 2), &wsa);
+
+    while (1) {
+        sock = socket(AF_INET, SOCK_STREAM, 0);
+        server.sin_family = AF_INET;
+        server.sin_port = htons(5060);
+        inet_pton(AF_INET, "127.0.0.1", &server.sin_addr);
+
+        if (connect(sock, (struct sockaddr*)&server, sizeof(server)) < 0) {
+            printf("Waiting for server...\n");
+            closesocket(sock);
+            Sleep(2000);
+            continue;
+        }
+
+        printf("Connected to server.\n");
+
+        while (1) {
+            int bytes = recv(sock, (char*)&meter, sizeof(meter), 0);
+            if (bytes <= 0) break;
+
+            result.Result = ((meter.BlueNew - meter.BlueOld) * 5) +
+                ((meter.GreenNew - meter.GreenOld) * 10) +
+                ((meter.RedNew - meter.RedOld) * 15);
+            strcpy_s(result.Id, ID_MAX_LEN, meter.Id);
+
+            send(sock, (char*)&result, sizeof(result), 0);
+        }
+
+        closesocket(sock);
+        printf("Disconnected from server. Reconnecting...\n");
+        Sleep(2000);
+    }
+
+    WSACleanup();
+    return 0;
 }
-*/
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
