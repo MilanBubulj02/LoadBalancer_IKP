@@ -2,7 +2,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <stdio.h>
-#include <windows.h>
+#include <string.h>
 #include "ElectricMeterSt.h"
 
 #pragma comment(lib, "ws2_32.lib")
@@ -13,41 +13,43 @@ int main() {
     struct sockaddr_in server;
     ElectricMeterSt meter;
     ResultSt result;
+    PriceSt prices;
 
     WSAStartup(MAKEWORD(2, 2), &wsa);
 
-    while (1) {
-        sock = socket(AF_INET, SOCK_STREAM, 0);
-        server.sin_family = AF_INET;
-        server.sin_port = htons(5060);
-        inet_pton(AF_INET, "127.0.0.1", &server.sin_addr);
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    server.sin_family = AF_INET;
+    server.sin_port = htons(5060);
+    inet_pton(AF_INET, "127.0.0.1", &server.sin_addr);
 
-        if (connect(sock, (struct sockaddr*)&server, sizeof(server)) < 0) {
-            printf("Waiting for server...\n");
-            closesocket(sock);
-            Sleep(2000);
-            continue;
-        }
-
-        printf("Connected to server.\n");
-
-        while (1) {
-            int bytes = recv(sock, (char*)&meter, sizeof(meter), 0);
-            if (bytes <= 0) break;
-
-            result.Result = ((meter.BlueNew - meter.BlueOld) * 5) +
-                ((meter.GreenNew - meter.GreenOld) * 10) +
-                ((meter.RedNew - meter.RedOld) * 15);
-            strcpy_s(result.Id, ID_MAX_LEN, meter.Id);
-
-            send(sock, (char*)&result, sizeof(result), 0);
-        }
-
-        closesocket(sock);
-        printf("Disconnected from server. Reconnecting...\n");
+    while (connect(sock, (struct sockaddr*)&server, sizeof(server)) < 0) {
+        printf("Cekam server...\n");
         Sleep(2000);
     }
 
+    printf("Povezan sa serverom.\n");
+
+    // Primanje cena
+    recv(sock, (char*)&prices, sizeof(prices), 0);
+    send(sock, "cene primljene", strlen("cene primljene") + 1, 0);
+
+    while (1) {
+        int bytes = recv(sock, (char*)&meter, sizeof(meter), 0);
+        if (bytes <= 0) { Sleep(100); continue; }
+
+        printf("Worker primio zadatak: ID=%s\n", meter.Id);
+
+        // Obrada
+        result.Result = ((meter.BlueNew - meter.BlueOld) * prices.BluePrice) +
+            ((meter.GreenNew - meter.GreenOld) * prices.GreenPrice) +
+            ((meter.RedNew - meter.RedOld) * prices.RedPrice);
+        strcpy_s(result.Id, ID_MAX_LEN, meter.Id);
+
+        send(sock, (char*)&result, sizeof(result), 0);
+        printf("Rezultat poslat: %d\n", result.Result);
+    }
+
+    closesocket(sock);
     WSACleanup();
     return 0;
 }
